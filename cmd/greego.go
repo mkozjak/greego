@@ -3,6 +3,7 @@ package main
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/mkozjak/greego/internal/config"
 	"github.com/mkozjak/greego/internal/handlers"
@@ -23,5 +24,5 @@ func main() {
 		}
 	})
 
-	http.ListenAndServe(":4242", nil)
+	http.ListenAndServe(":"+strconv.Itoa(c.App.Port), nil)
 }

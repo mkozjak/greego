@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	port            int
 	clientAddress   string
 	socketInterface string
 	id              string
@@ -14,6 +15,7 @@ var (
 )
 
 type App struct {
+	Port    int
 	Verbose bool
 }
 
@@ -30,6 +32,7 @@ type Config struct {
 }
 
 func New() *Config {
+	flag.IntVar(&port, "port", 4242, "Server listening port")
 	flag.StringVar(&clientAddress, "client-address", "", "IP address of the client device")
 	flag.StringVar(&socketInterface, "socket-interface", "", "Bind the socket to a specific network interface")
 	flag.StringVar(&id, "id", "", "Unique ID of the device")
@@ -43,6 +46,7 @@ func New() *Config {
 
 	return &Config{
 		App: App{
+			Port:    port,
 			Verbose: true,
 		},
 		Client: Client{
