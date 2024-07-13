@@ -18,9 +18,10 @@ type App struct {
 }
 
 type Client struct {
-	Key string
-	IP  string
-	ID  string
+	Key   string
+	IP    string
+	ID    string
+	Bcast string
 }
 
 type Config struct {
@@ -45,9 +46,10 @@ func New() *Config {
 			Verbose: true,
 		},
 		Client: Client{
-			Key: key,
-			IP:  clientAddress,
-			ID:  id,
+			Key:   key,
+			IP:    clientAddress,
+			ID:    id,
+			Bcast: broadcast,
 		},
 	}
 }

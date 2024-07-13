@@ -35,7 +35,8 @@ type Response struct {
 }
 
 type Requester interface {
-	Request(p []string) error
+	SetParam(p []string) error
+	GetParam(p []string) error
 }
 
 type manager struct {
@@ -48,7 +49,7 @@ func New(cfg *config.Config) *manager {
 	}
 }
 
-func (m *manager) Request(p []string) error {
+func (m *manager) SetParam(p []string) error {
 	kvList := [][]string{}
 	for _, param := range p {
 		parts := strings.Split(param, "=")
@@ -112,6 +113,137 @@ func (m *manager) Request(p []string) error {
 	return nil
 }
 
+func (m *manager) GetParam(p []string) error {
+	fmt.Printf("Getting parameters: %s\n", strings.Join(p, ", "))
+
+	cols := strings.Join(p, `","`)
+	pack := fmt.Sprintf(`{"cols":["%s"],"mac":"%s","t":"status"}`, cols, m.cfg.Client.ID)
+	packEnc, err := encrypt(pack, m.cfg.Client.Key)
+	if err != nil {
+		return err
+	}
+
+	request := fmt.Sprintf(`{"cid":"app","i":0,"pack":"%s","t":"pack","tcid":"%s","uid":0}`, packEnc, m.cfg.Client.ID)
+	result, err := m.sendData(m.cfg.Client.IP, 7000, []byte(request))
+	if err != nil {
+		return err
+	}
+
+	var response Response
+	if err := json.Unmarshal(result, &response); err != nil {
+		return err
+	}
+
+	if m.cfg.App.Verbose {
+		fmt.Printf("get_param: response=%s\n", string(result))
+	}
+
+	if response.T == "pack" {
+		pack := response.Pack
+		packDec, err := decrypt(pack, m.cfg.Client.Key)
+		if err != nil {
+			return err
+		}
+
+		var packJson map[string]interface{}
+		if err := json.Unmarshal([]byte(packDec), &packJson); err != nil {
+			return err
+		}
+
+		if m.cfg.App.Verbose {
+			fmt.Printf("get_param: pack=%s, json=%s\n", pack, packJson)
+		}
+
+		cols := packJson["cols"].([]interface{})
+		dat := packJson["dat"].([]interface{})
+		for i, col := range cols {
+			fmt.Printf("%s = %s\n", col, dat[i])
+		}
+	}
+
+	return nil
+}
+
+func (m *manager) searchDevices() error {
+	fmt.Printf("Searching for devices using broadcast address: %s\n", m.cfg.Client.Bcast)
+
+	conn, err := net.ListenPacket("udp4", ":0")
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	msg := []byte(`{"t":"scan"}`)
+	broadcastAddr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:7000", m.cfg.Client.Bcast))
+	if err != nil {
+		return err
+	}
+	_, err = conn.WriteTo(msg, broadcastAddr)
+	if err != nil {
+		return err
+	}
+
+	buffer := make([]byte, 1024)
+	results := []ScanResult{}
+
+	for {
+		conn.SetReadDeadline(time.Now().Add(15 * time.Second))
+		n, addr, err := conn.ReadFrom(buffer)
+		if err != nil {
+			break
+		}
+
+		rawJson := buffer[:n]
+		if m.cfg.App.Verbose {
+			fmt.Printf("search_devices: data=%s, raw_json=%s\n", string(buffer), string(rawJson))
+		}
+
+		var resp map[string]string
+		if err := json.Unmarshal(rawJson, &resp); err != nil {
+			fmt.Println("Error: ", err)
+			continue
+		}
+
+		pack, err := decryptGeneric(resp["pack"])
+		if err != nil {
+			fmt.Println("Error: ", err)
+			continue
+		}
+
+		var packMap map[string]interface{}
+		if err := json.Unmarshal([]byte(pack), &packMap); err != nil {
+			fmt.Println("Error: ", err)
+			continue
+		}
+
+		cid := "<unknown-cid>"
+		if val, ok := packMap["cid"]; ok && val != "" {
+			cid = val.(string)
+		} else if val, ok := resp["cid"]; ok {
+			cid = val
+		}
+
+		results = append(results, ScanResult{
+			IP:   addr.String(),
+			Port: 7000,
+			ID:   cid,
+			Name: packMap["name"].(string),
+		})
+
+		if m.cfg.App.Verbose {
+			fmt.Printf("search_devices: pack=%s\n", pack)
+		}
+	}
+
+	if len(results) > 0 {
+		for _, r := range results {
+			m.bindDevice(r)
+		}
+	}
+
+	return nil
+}
+
 func (m *manager) sendData(ip string, port int, data []byte) ([]byte, error) {
 	if m.cfg.App.Verbose {
 		fmt.Printf("send_data: ip=%s, port=%d, data=%s\n", ip, port, string(data))
@@ -136,6 +268,54 @@ func (m *manager) sendData(ip string, port int, data []byte) ([]byte, error) {
 	}
 
 	return buffer[:n], nil
+}
+
+func (m *manager) bindDevice(searchResult ScanResult) {
+	fmt.Printf("Binding device: %s (%s, ID: %s)\n", searchResult.IP, searchResult.Name, searchResult.ID)
+
+	pack := fmt.Sprintf(`{"mac":"%s","t":"bind","uid":0}`, searchResult.ID)
+	packEnc, err := encryptGeneric(pack)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return
+	}
+
+	request := createRequest(searchResult.ID, packEnc, 1)
+	result, err := m.sendData(searchResult.IP, 7000, []byte(request))
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return
+	}
+
+	var response map[string]string
+	if err := json.Unmarshal(result, &response); err != nil {
+		fmt.Println("Error: ", err)
+		return
+	}
+
+	if response["t"] == "pack" {
+		pack := response["pack"]
+		packDec, err := decryptGeneric(pack)
+		if err != nil {
+			fmt.Println("Error: ", err)
+			return
+		}
+
+		var bindResp map[string]interface{}
+		if err := json.Unmarshal([]byte(packDec), &bindResp); err != nil {
+			fmt.Println("Error: ", err)
+			return
+		}
+
+		if m.cfg.App.Verbose {
+			fmt.Printf("bind_device: resp=%s\n", packDec)
+		}
+
+		if bindResp["t"].(string) == "bindok" {
+			key := bindResp["key"].(string)
+			fmt.Printf("Bind to %s succeeded, key = %s\n", searchResult.ID, key)
+		}
+	}
 }
 
 func createRequest(tcid, packEnc string, i int) string {
