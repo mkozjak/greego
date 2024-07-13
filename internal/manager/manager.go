@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"strings"
 	"time"
@@ -87,7 +88,7 @@ func (m *manager) SetParam(p []string) error {
 	}
 
 	if m.cfg.App.Verbose {
-		fmt.Printf("set_param: response=%s\n", string(result))
+		log.Printf("set_param: response=%s\n", string(result))
 	}
 
 	if response.T == "pack" {
@@ -103,11 +104,11 @@ func (m *manager) SetParam(p []string) error {
 		}
 
 		if m.cfg.App.Verbose {
-			fmt.Printf("set_param: pack=%s\n", packDec)
+			log.Printf("set_param: pack=%s\n", packDec)
 		}
 
 		if int(packJson["r"].(float64)) != 200 {
-			fmt.Println("Failed to set parameter")
+			log.Println("Failed to set parameter")
 		}
 	}
 	return nil
@@ -135,7 +136,7 @@ func (m *manager) GetParam(p []string) error {
 	}
 
 	if m.cfg.App.Verbose {
-		fmt.Printf("get_param: response=%s\n", string(result))
+		log.Printf("get_param: response=%s\n", string(result))
 	}
 
 	if response.T == "pack" {
@@ -151,7 +152,7 @@ func (m *manager) GetParam(p []string) error {
 		}
 
 		if m.cfg.App.Verbose {
-			fmt.Printf("get_param: pack=%s, json=%s\n", pack, packJson)
+			log.Printf("get_param: pack=%s, json=%s\n", pack, packJson)
 		}
 
 		cols := packJson["cols"].([]interface{})
@@ -195,7 +196,7 @@ func (m *manager) searchDevices() error {
 
 		rawJson := buffer[:n]
 		if m.cfg.App.Verbose {
-			fmt.Printf("search_devices: data=%s, raw_json=%s\n", string(buffer), string(rawJson))
+			log.Printf("search_devices: data=%s, raw_json=%s\n", string(buffer), string(rawJson))
 		}
 
 		var resp map[string]string
@@ -231,7 +232,7 @@ func (m *manager) searchDevices() error {
 		})
 
 		if m.cfg.App.Verbose {
-			fmt.Printf("search_devices: pack=%s\n", pack)
+			log.Printf("search_devices: pack=%s\n", pack)
 		}
 	}
 
@@ -246,7 +247,7 @@ func (m *manager) searchDevices() error {
 
 func (m *manager) sendData(ip string, port int, data []byte) ([]byte, error) {
 	if m.cfg.App.Verbose {
-		fmt.Printf("send_data: ip=%s, port=%d, data=%s\n", ip, port, string(data))
+		log.Printf("send_data: ip=%s, port=%d, data=%s\n", ip, port, string(data))
 	}
 
 	conn, err := net.Dial("udp", fmt.Sprintf("%s:%d", ip, port))
@@ -308,12 +309,12 @@ func (m *manager) bindDevice(searchResult ScanResult) {
 		}
 
 		if m.cfg.App.Verbose {
-			fmt.Printf("bind_device: resp=%s\n", packDec)
+			log.Printf("bind_device: resp=%s\n", packDec)
 		}
 
 		if bindResp["t"].(string) == "bindok" {
 			key := bindResp["key"].(string)
-			fmt.Printf("Bind to %s succeeded, key = %s\n", searchResult.ID, key)
+			log.Printf("Bind to %s succeeded, key = %s\n", searchResult.ID, key)
 		}
 	}
 }

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/mkozjak/greego/internal/manager"
@@ -18,6 +17,9 @@ func New(m manager.Requester) *handlers {
 	}
 }
 
+// SetPower will prepare a request for AC to set power state based
+// on the data received through `req`. It will set temperature to 27
+// and its mode to Cooling.
 func (h *handlers) SetPower(res http.ResponseWriter, req *http.Request) {
 	var body map[string]string
 	err := json.NewDecoder(req.Body).Decode(&body)
@@ -28,15 +30,9 @@ func (h *handlers) SetPower(res http.ResponseWriter, req *http.Request) {
 
 	p := []string{}
 
-	if body["set"] == "on" {
-		log.Println("need to enable")
-	} else {
-		log.Println("need to disable")
-	}
-
 	switch body["set"] {
 	case "on":
-		p = append(p, "Pow=1")
+		p = append(p, "Pow=1", "Mod=1", "TemUn=0", "SetTem=27")
 	case "off":
 		p = append(p, "Pow=0")
 	default:
