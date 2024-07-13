@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -34,6 +33,5 @@ func (h *handlers) SetPower(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fmt.Println("Set Pow successfully")
 	res.WriteHeader(http.StatusOK)
 }
