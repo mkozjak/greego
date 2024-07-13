@@ -5,7 +5,11 @@ After=network.target
 [Service]
 Type=simple
 User=greego
+ExecStartPre=-/usr/sbin/wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant/wpa_supplicant.conf
+ExecStartPre=-/usr/sbin/dhclient wlan0
 ExecStart=/opt/greego/greego -port 4242 -client-address "192.168.1.1" -socket-interface "wlan0" -id "foo" -key "bar" -broadcast 192.168.1.255
+ExecStopPost=-/usr/sbin/wpa_cli terminate -i wlan0
+ExecStopPost=-/usr/sbin/dhclient -r wlan0
 WorkingDirectory=/opt/greego
 Restart=on-failure
 RestartSec=5
