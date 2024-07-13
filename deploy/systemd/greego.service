@@ -1,0 +1,16 @@
+[Unit]
+Description=greego
+After=network.target
+
+[Service]
+Type=simple
+User=greego
+ExecStart=/opt/greego/greego -port 4242 -client-address "192.168.1.1" -socket-interface "wlan0" -id "foo" -key "bar" -broadcast 192.168.1.255
+WorkingDirectory=/opt/greego
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=60s
+StartLimitBurst=3
+
+[Install]
+WantedBy=default.target
