@@ -394,8 +394,6 @@ func setParam() {
 }
 
 func main() {
-	// example: ./greego -c "192.168.1.1" -socket-interface "wlan0"
-	// -i "f4911e6fe3a8" -k "De9Gh2Jk5Mn8Pq1S" -command set Lig=0
 	c := config.New()
 	m := manager.New(c)
 	h := handlers.New(m)
