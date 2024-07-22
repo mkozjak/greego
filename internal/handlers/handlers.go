@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/mkozjak/greego/internal/manager"
 )
@@ -46,4 +47,15 @@ func (h *handlers) SetPower(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.WriteHeader(http.StatusOK)
+}
+
+func (h *handlers) Temperature(res http.ResponseWriter, req *http.Request) {
+	d, err := h.mgr.GetParam([]string{"SetTem"})
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	t := strconv.FormatFloat(d[0].(float64), 'f', 0, 64)
+	res.Write([]byte(t))
 }

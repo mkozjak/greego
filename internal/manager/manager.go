@@ -37,7 +37,7 @@ type Response struct {
 
 type Requester interface {
 	SetParam(p []string) error
-	GetParam(p []string) error
+	GetParam(p []string) ([]interface{}, error)
 }
 
 type manager struct {
@@ -114,25 +114,25 @@ func (m *manager) SetParam(p []string) error {
 	return nil
 }
 
-func (m *manager) GetParam(p []string) error {
+func (m *manager) GetParam(p []string) ([]interface{}, error) {
 	fmt.Printf("Getting parameters: %s\n", strings.Join(p, ", "))
 
 	cols := strings.Join(p, `","`)
 	pack := fmt.Sprintf(`{"cols":["%s"],"mac":"%s","t":"status"}`, cols, m.cfg.Client.ID)
 	packEnc, err := encrypt(pack, m.cfg.Client.Key)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	request := fmt.Sprintf(`{"cid":"app","i":0,"pack":"%s","t":"pack","tcid":"%s","uid":0}`, packEnc, m.cfg.Client.ID)
 	result, err := m.sendData(m.cfg.Client.IP, 7000, []byte(request))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var response Response
 	if err := json.Unmarshal(result, &response); err != nil {
-		return err
+		return nil, err
 	}
 
 	if m.cfg.App.Verbose {
@@ -143,12 +143,12 @@ func (m *manager) GetParam(p []string) error {
 		pack := response.Pack
 		packDec, err := decrypt(pack, m.cfg.Client.Key)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		var packJson map[string]interface{}
 		if err := json.Unmarshal([]byte(packDec), &packJson); err != nil {
-			return err
+			return nil, err
 		}
 
 		if m.cfg.App.Verbose {
@@ -157,12 +157,17 @@ func (m *manager) GetParam(p []string) error {
 
 		cols := packJson["cols"].([]interface{})
 		dat := packJson["dat"].([]interface{})
-		for i, col := range cols {
-			fmt.Printf("%s = %s\n", col, dat[i])
+
+		if m.cfg.App.Verbose {
+			for i, col := range cols {
+				fmt.Printf("%s = %s\n", col, dat[i])
+			}
 		}
+
+		return dat, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (m *manager) searchDevices() error {

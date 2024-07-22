@@ -24,5 +24,16 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/api/v1/temperature", func(res http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case "GET":
+			h.Temperature(res, req)
+		// case "POST":
+		// 	h.SetTemperature(res, req)
+		default:
+			http.Error(res, "", http.StatusMethodNotAllowed)
+		}
+	})
+
 	http.ListenAndServe(":"+strconv.Itoa(c.App.Port), nil)
 }
